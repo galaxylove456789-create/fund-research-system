@@ -1,0 +1,16 @@
+{
+  "string": [
+    {
+      "name": "module_desc",
+      "value": "基金研究子系统鸿蒙移动端"
+    },
+    {
+      "name": "EntryAbility_desc",
+      "value": "基金研究移动端入口"
+    },
+    {
+      "name": "EntryAbility_label",
+      "value": "基金研究"
+    }
+  ]
+}
