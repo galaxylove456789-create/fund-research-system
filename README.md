@@ -2,6 +2,12 @@
 
 FundResearch 是一个基金研究与智能选基决策系统，包含 Vue 前端、Spring Boot 后端、KingbaseES 国产数据库、Dify 智能工作流接入和 HarmonyOS 端目录。Web 端围绕基金筛选、基金画像、净值图表、自选组合、基金对比、智能推荐、社区研究和后台导入管理构建。
 
+开源仓库地址：
+
+```text
+https://github.com/galaxylove456789-create/fund-research-system.git
+```
+
 ## 项目结构
 
 ```text
@@ -14,6 +20,7 @@ fund-research-system/
 ├─ test_reports/                 # 测试报告占位与说明
 ├─ docker-compose.yml            # 前端、后端、KingbaseES 一键编排
 ├─ .env.example                  # 环境变量模板
+├─ FundResearch开源项目交付说明.md # 最终交付说明
 └─ FundResearch_Docker部署说明.md # Docker 部署说明
 ```
 
@@ -100,6 +107,18 @@ npm run dev
 - Dify 智能推荐解释和智能对比结论
 - 社区帖子、评论、点赞、作者关注和推荐作者
 - 管理员基金导入、导入错误查看、标签维护、用户管理和数据库探针
+
+## 开发成员及分工
+
+| 成员账号 | 主要分工 | 主要提交内容 |
+| --- | --- | --- |
+| `galaxylove456789-create` | 项目仓库创建、后端基础代码、HarmonyOS 端、测试目录建设 | 初始化仓库、后端服务源码、鸿蒙移动端源码、测试代码与报告目录 |
+| `Irisyu0504` / `Iris` | 前端源码、Docker 容器化、KingbaseES 数据库封装、项目部署文档 | Vue 前端、Docker Compose、KingbaseES 初始化 SQL、README 与部署说明 |
+| `Richard0629` | 测试代码与测试资料补充 | 上传测试相关代码/资料，完善测试覆盖材料 |
+| `JYX-jyx123` | 文档与辅助资料补充 | 上传项目辅助文件，补充开源协作材料 |
+| `QazplM2005` | 后端公共模块 JUnit 测试 | 补充后端公共模块 JUnit 测试代码 |
+
+提交记录可在 GitHub 仓库 Contributors 页面查看，当前仓库已有 5 个账号参与提交。
 
 ## 测试
 
