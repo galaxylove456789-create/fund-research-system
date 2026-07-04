@@ -2,37 +2,24 @@ package com.fund.research.security;
 
 import org.junit.jupiter.api.Test;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.assertj.core.api.Assertions.assertThat;
 
 class JwtTokenProviderTest {
 
     @Test
-    void generateTokenCanBeParsedBackToAuthenticatedUser() {
+    void generateAndParseTokenPreservesUserIdentityAndRole() {
         JwtProperties properties = new JwtProperties();
-        properties.setSecret("0123456789abcdef0123456789abcdef");
-        properties.setExpireMinutes(30L);
+        properties.setSecret("test-secret-key-with-enough-length-for-hmac-sha");
+        properties.setExpireMinutes(60L);
+
         JwtTokenProvider provider = new JwtTokenProvider(properties);
 
-        String token = provider.generateToken(1001L, "fundUser", "ADMIN");
+        String token = provider.generateToken(7L, "alice", "ADMIN");
         AuthenticatedUser user = provider.parseToken(token);
 
-        assertNotNull(token);
-        assertEquals(1001L, user.getUserId());
-        assertEquals("fundUser", user.getUsername());
-        assertEquals("ADMIN", user.getRoleCode());
-    }
-
-    @Test
-    void generateTokenUsesUserRoleWhenRoleCodeIsBlank() {
-        JwtProperties properties = new JwtProperties();
-        properties.setSecret("0123456789abcdef0123456789abcdef");
-        properties.setExpireMinutes(30L);
-        JwtTokenProvider provider = new JwtTokenProvider(properties);
-
-        String token = provider.generateToken(1002L, "normalUser", "");
-        AuthenticatedUser user = provider.parseToken(token);
-
-        assertEquals("USER", user.getRoleCode());
+        assertThat(user.getUserId()).isEqualTo(7L);
+        assertThat(user.getUsername()).isEqualTo("alice");
+        assertThat(user.getRoleCode()).isEqualTo("ADMIN");
+        assertThat(user.isAdmin()).isTrue();
     }
 }

@@ -1,0 +1,626 @@
+-- FundResearch KingbaseES Docker initialization script.
+-- Creates the core business schema and a compact demo dataset for local review.
+
+CREATE TABLE IF NOT EXISTS fund_user (
+    user_id BIGSERIAL PRIMARY KEY,
+    username VARCHAR(80) NOT NULL UNIQUE,
+    password_hash VARCHAR(255) NOT NULL,
+    role_code VARCHAR(20) NOT NULL DEFAULT 'USER',
+    risk_preference VARCHAR(40),
+    avatar VARCHAR(80),
+    gender VARCHAR(20),
+    location_name VARCHAR(120),
+    invest_years NUMERIC(8,2),
+    birthday DATE,
+    signature VARCHAR(500),
+    status INT DEFAULT 1,
+    created_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS fund_company (
+    company_id BIGSERIAL PRIMARY KEY,
+    company_name VARCHAR(160) NOT NULL,
+    short_name VARCHAR(80),
+    establish_date DATE,
+    asset_scale NUMERIC(18,2),
+    fund_count INT,
+    manager_count INT,
+    profile TEXT,
+    source VARCHAR(80),
+    updated_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS fund_manager (
+    manager_id BIGSERIAL PRIMARY KEY,
+    manager_name VARCHAR(120) NOT NULL,
+    company_id BIGINT,
+    gender VARCHAR(20),
+    education VARCHAR(120),
+    career_years NUMERIC(8,2),
+    current_fund_count INT,
+    total_asset NUMERIC(18,2),
+    profile TEXT,
+    source VARCHAR(80),
+    updated_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS fund_info (
+    fund_id BIGSERIAL PRIMARY KEY,
+    fund_code VARCHAR(30) NOT NULL UNIQUE,
+    fund_name VARCHAR(160) NOT NULL,
+    full_name VARCHAR(260),
+    fund_type VARCHAR(80),
+    risk_level VARCHAR(40),
+    company_id BIGINT,
+    fund_scale NUMERIC(18,2),
+    establish_date DATE,
+    benchmark VARCHAR(260),
+    custodian VARCHAR(160),
+    status INT DEFAULT 1,
+    source VARCHAR(80),
+    updated_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS fund_manager_relation (
+    relation_id BIGSERIAL PRIMARY KEY,
+    fund_id BIGINT NOT NULL,
+    manager_id BIGINT NOT NULL,
+    start_date DATE,
+    end_date DATE,
+    is_current INT DEFAULT 1
+);
+
+CREATE TABLE IF NOT EXISTS fund_nav (
+    nav_id BIGSERIAL PRIMARY KEY,
+    fund_id BIGINT NOT NULL,
+    nav_date DATE NOT NULL,
+    unit_nav NUMERIC(18,4),
+    acc_nav NUMERIC(18,4),
+    daily_return NUMERIC(10,4),
+    source VARCHAR(80),
+    created_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS fund_performance_metric (
+    metric_id BIGSERIAL PRIMARY KEY,
+    fund_id BIGINT NOT NULL,
+    stat_date DATE NOT NULL,
+    period_code VARCHAR(20) NOT NULL,
+    return_rate NUMERIC(10,4),
+    annual_return NUMERIC(10,4),
+    volatility NUMERIC(10,4),
+    max_drawdown NUMERIC(10,4),
+    sharpe_ratio NUMERIC(10,4),
+    rank_in_category INT,
+    rank_total INT,
+    created_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS fund_tag (
+    tag_id BIGSERIAL PRIMARY KEY,
+    tag_code VARCHAR(80) NOT NULL UNIQUE,
+    tag_name VARCHAR(120) NOT NULL,
+    tag_category VARCHAR(80),
+    description TEXT,
+    rule_expression TEXT,
+    enabled INT DEFAULT 1
+);
+
+CREATE TABLE IF NOT EXISTS fund_tag_relation (
+    relation_id BIGSERIAL PRIMARY KEY,
+    fund_id BIGINT NOT NULL,
+    tag_id BIGINT NOT NULL,
+    confidence NUMERIC(8,4),
+    source VARCHAR(80),
+    tag_date DATE DEFAULT CURRENT_DATE
+);
+
+CREATE TABLE IF NOT EXISTS company_tag_relation (
+    relation_id BIGSERIAL PRIMARY KEY,
+    company_id BIGINT NOT NULL,
+    tag_id BIGINT NOT NULL,
+    confidence NUMERIC(8,4),
+    source VARCHAR(80),
+    tag_date DATE DEFAULT CURRENT_DATE
+);
+
+CREATE TABLE IF NOT EXISTS manager_tag_relation (
+    relation_id BIGSERIAL PRIMARY KEY,
+    manager_id BIGINT NOT NULL,
+    tag_id BIGINT NOT NULL,
+    confidence NUMERIC(8,4),
+    source VARCHAR(80),
+    tag_date DATE DEFAULT CURRENT_DATE
+);
+
+CREATE TABLE IF NOT EXISTS fund_score (
+    score_id BIGSERIAL PRIMARY KEY,
+    fund_id BIGINT NOT NULL,
+    score_date DATE NOT NULL,
+    yield_score NUMERIC(8,2),
+    risk_score NUMERIC(8,2),
+    stability_score NUMERIC(8,2),
+    manager_score NUMERIC(8,2),
+    scale_score NUMERIC(8,2),
+    total_score NUMERIC(8,2),
+    recommend_level VARCHAR(80),
+    explain_text TEXT,
+    created_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS fund_holding_report (
+    report_id BIGSERIAL PRIMARY KEY,
+    fund_id BIGINT NOT NULL,
+    report_date DATE NOT NULL,
+    report_type VARCHAR(40),
+    stock_ratio NUMERIC(10,4),
+    bond_ratio NUMERIC(10,4),
+    cash_ratio NUMERIC(10,4),
+    top10_concentration NUMERIC(10,4),
+    created_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS fund_holding_detail (
+    holding_id BIGSERIAL PRIMARY KEY,
+    report_id BIGINT NOT NULL,
+    security_code VARCHAR(40),
+    security_name VARCHAR(160),
+    security_type VARCHAR(40),
+    industry_name VARCHAR(120),
+    market_value NUMERIC(18,2),
+    holding_ratio NUMERIC(10,4)
+);
+
+CREATE TABLE IF NOT EXISTS fund_attribution (
+    attribution_id BIGSERIAL PRIMARY KEY,
+    fund_id BIGINT NOT NULL,
+    report_date DATE NOT NULL,
+    period_code VARCHAR(20),
+    allocation_effect NUMERIC(10,4),
+    selection_effect NUMERIC(10,4),
+    industry_effect NUMERIC(10,4),
+    style_effect NUMERIC(10,4),
+    attribution_summary TEXT
+);
+
+CREATE TABLE IF NOT EXISTS fund_announcement (
+    announcement_id BIGSERIAL PRIMARY KEY,
+    fund_id BIGINT NOT NULL,
+    title VARCHAR(260),
+    announcement_date DATE,
+    category VARCHAR(80),
+    source_url VARCHAR(500),
+    summary TEXT
+);
+
+CREATE TABLE IF NOT EXISTS fund_portfolio (
+    portfolio_id BIGSERIAL PRIMARY KEY,
+    user_id BIGINT,
+    portfolio_name VARCHAR(160) NOT NULL,
+    portfolio_type VARCHAR(80),
+    source_dimension VARCHAR(120),
+    source_condition TEXT,
+    description TEXT,
+    portfolio_style VARCHAR(80),
+    risk_level VARCHAR(40),
+    avg_risk_score NUMERIC(8,2),
+    avg_total_score NUMERIC(8,2),
+    tracking_enabled INT DEFAULT 1,
+    created_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS portfolio_fund_relation (
+    relation_id BIGSERIAL PRIMARY KEY,
+    portfolio_id BIGINT NOT NULL,
+    fund_id BIGINT NOT NULL,
+    weight NUMERIC(8,4),
+    add_source VARCHAR(80),
+    snapshot_score NUMERIC(8,2),
+    snapshot_return_1y NUMERIC(10,4),
+    snapshot_max_drawdown NUMERIC(10,4),
+    remark TEXT,
+    created_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS user_favorite (
+    favorite_id BIGSERIAL PRIMARY KEY,
+    user_id BIGINT NOT NULL,
+    fund_id BIGINT NOT NULL,
+    favorite_group VARCHAR(80),
+    remark TEXT,
+    created_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS fund_compare_record (
+    compare_id BIGSERIAL PRIMARY KEY,
+    user_id BIGINT,
+    compare_dimension VARCHAR(160),
+    result_summary TEXT,
+    created_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS fund_compare_item (
+    item_id BIGSERIAL PRIMARY KEY,
+    compare_id BIGINT NOT NULL,
+    fund_id BIGINT NOT NULL,
+    display_order INT DEFAULT 1
+);
+
+CREATE TABLE IF NOT EXISTS ai_analysis_record (
+    analysis_id BIGSERIAL PRIMARY KEY,
+    user_id BIGINT,
+    business_type VARCHAR(80) NOT NULL,
+    business_id BIGINT,
+    dify_workflow_id VARCHAR(160),
+    request_payload TEXT,
+    response_text TEXT,
+    status VARCHAR(40),
+    error_message TEXT,
+    created_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS user_saved_filter (
+    filter_id BIGSERIAL PRIMARY KEY,
+    user_id BIGINT,
+    filter_name VARCHAR(160),
+    filter_condition TEXT,
+    created_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS user_recent_fund_view (
+    view_id BIGSERIAL PRIMARY KEY,
+    user_id BIGINT,
+    fund_id BIGINT NOT NULL,
+    view_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS community_author_profile (
+    author_id BIGSERIAL PRIMARY KEY,
+    user_id BIGINT,
+    nickname VARCHAR(120),
+    avatar VARCHAR(160),
+    intro VARCHAR(500),
+    article_count INT DEFAULT 0,
+    follower_count INT DEFAULT 0,
+    created_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS community_post (
+    post_id BIGSERIAL PRIMARY KEY,
+    author_id BIGINT NOT NULL,
+    title VARCHAR(260) NOT NULL,
+    category VARCHAR(80),
+    related_fund_id BIGINT,
+    summary TEXT,
+    content TEXT,
+    tags VARCHAR(500),
+    view_count INT DEFAULT 0,
+    comment_count INT DEFAULT 0,
+    like_count INT DEFAULT 0,
+    status VARCHAR(40) DEFAULT 'PUBLISHED',
+    created_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS community_post_view (
+    view_id BIGSERIAL PRIMARY KEY,
+    post_id BIGINT NOT NULL,
+    user_id BIGINT,
+    ip_address VARCHAR(80),
+    user_agent VARCHAR(500),
+    view_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS community_comment (
+    comment_id BIGSERIAL PRIMARY KEY,
+    post_id BIGINT NOT NULL,
+    user_id BIGINT,
+    content TEXT,
+    status VARCHAR(40) DEFAULT 'PUBLISHED',
+    created_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS community_like (
+    like_id BIGSERIAL PRIMARY KEY,
+    user_id BIGINT NOT NULL,
+    target_type VARCHAR(40) NOT NULL,
+    target_id BIGINT NOT NULL,
+    created_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS community_author_follow (
+    follow_id BIGSERIAL PRIMARY KEY,
+    user_id BIGINT NOT NULL,
+    author_id BIGINT NOT NULL,
+    created_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS ai_recommend_record (
+    recommend_id BIGSERIAL PRIMARY KEY,
+    user_id BIGINT,
+    recommend_scene VARCHAR(80),
+    request_payload TEXT,
+    status VARCHAR(40),
+    created_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS ai_recommend_item (
+    item_id BIGSERIAL PRIMARY KEY,
+    recommend_id BIGINT NOT NULL,
+    fund_id BIGINT NOT NULL,
+    total_score_snapshot NUMERIC(8,2),
+    recommend_level VARCHAR(80),
+    reason TEXT,
+    risk_warning TEXT,
+    suitable_user TEXT,
+    tags VARCHAR(500),
+    display_order INT DEFAULT 1,
+    created_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS data_import_batch (
+    batch_id BIGSERIAL PRIMARY KEY,
+    batch_no VARCHAR(120),
+    import_type VARCHAR(80),
+    file_name VARCHAR(260),
+    file_hash VARCHAR(160),
+    total_count INT DEFAULT 0,
+    success_count INT DEFAULT 0,
+    error_count INT DEFAULT 0,
+    field_mapping TEXT,
+    validate_summary TEXT,
+    status VARCHAR(40),
+    operator_id BIGINT,
+    created_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    finished_time TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS data_import_error (
+    error_id BIGSERIAL PRIMARY KEY,
+    batch_id BIGINT,
+    row_no INT,
+    fund_code VARCHAR(40),
+    error_field VARCHAR(120),
+    error_reason TEXT,
+    suggestion TEXT,
+    raw_data TEXT,
+    status VARCHAR(40),
+    created_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS idx_fund_info_code ON fund_info(fund_code);
+CREATE INDEX IF NOT EXISTS idx_fund_info_type ON fund_info(fund_type);
+CREATE INDEX IF NOT EXISTS idx_fund_nav_fund_date ON fund_nav(fund_id, nav_date);
+CREATE INDEX IF NOT EXISTS idx_metric_fund_period_date ON fund_performance_metric(fund_id, period_code, stat_date);
+CREATE INDEX IF NOT EXISTS idx_score_fund_date ON fund_score(fund_id, score_date);
+CREATE INDEX IF NOT EXISTS idx_favorite_user ON user_favorite(user_id);
+CREATE INDEX IF NOT EXISTS idx_compare_user ON fund_compare_record(user_id);
+CREATE INDEX IF NOT EXISTS idx_ai_analysis_business ON ai_analysis_record(business_type, business_id);
+
+INSERT INTO fund_user (user_id, username, password_hash, role_code, risk_preference, avatar, signature, status)
+VALUES
+    (1, 'admin', 'demo_hash', 'ADMIN', 'BALANCED', 'A', '系统管理员账号，默认密码 admin123456', 1),
+    (2, 'Iris0504', 'demo_hash', 'USER', 'BALANCED', 'I', '关注基金研究与组合跟踪', 1)
+ON CONFLICT (username) DO NOTHING;
+
+INSERT INTO fund_company (company_id, company_name, short_name, establish_date, asset_scale, fund_count, manager_count, profile, source)
+VALUES
+    (1, '中金基金管理有限公司', '中金基金', DATE '2014-02-10', 1280.50, 86, 22, '以主动权益和混合策略产品为主，覆盖制造、消费和科技方向。', 'docker-demo'),
+    (2, '东吴基金管理有限公司', '东吴基金', DATE '2004-09-02', 780.30, 64, 18, '权益与固收产品线较完整，适合进行多维度基金研究演示。', 'docker-demo'),
+    (3, '样本基金管理有限公司', '样本基金', DATE '2010-05-20', 360.00, 28, 9, '用于 Docker 初始化和业务演示的样本基金公司。', 'docker-demo')
+ON CONFLICT DO NOTHING;
+
+INSERT INTO fund_manager (manager_id, manager_name, company_id, education, career_years, current_fund_count, total_asset, profile, source)
+VALUES
+    (1, '陈明', 1, '硕士', 8.5, 4, 180.20, '偏成长制造方向，重视行业景气度和组合分散。', 'docker-demo'),
+    (2, '李然', 2, '硕士', 10.0, 5, 220.60, '擅长混合策略和回撤控制。', 'docker-demo'),
+    (3, '周宁', 3, '博士', 12.0, 3, 95.40, '偏稳健债券和绝对收益策略。', 'docker-demo')
+ON CONFLICT DO NOTHING;
+
+INSERT INTO fund_info (fund_id, fund_code, fund_name, full_name, fund_type, risk_level, company_id, fund_scale, establish_date, benchmark, custodian, status, source)
+VALUES
+    (1, '018139', '中金先进制造混合A', '中金先进制造混合型证券投资基金A', '混合型-偏股', 'HIGH', 1, 26.80, DATE '2021-06-18', '中证先进制造指数收益率*80%+中债综合指数收益率*20%', '中国建设银行', 1, 'docker-demo'),
+    (2, '018140', '中金先进制造混合C', '中金先进制造混合型证券投资基金C', '混合型-偏股', 'HIGH', 1, 15.60, DATE '2021-06-18', '中证先进制造指数收益率*80%+中债综合指数收益率*20%', '中国建设银行', 1, 'docker-demo'),
+    (3, '580009', '东吴多策略混合A', '东吴多策略灵活配置混合型证券投资基金A', '混合型-灵活配置', 'MEDIUM_HIGH', 2, 18.40, DATE '2012-05-08', '沪深300指数收益率*60%+中债综合指数收益率*40%', '招商银行', 1, 'docker-demo'),
+    (4, '011949', '东吴多策略混合C', '东吴多策略灵活配置混合型证券投资基金C', '混合型-灵活配置', 'MEDIUM_HIGH', 2, 9.70, DATE '2021-04-20', '沪深300指数收益率*60%+中债综合指数收益率*40%', '招商银行', 1, 'docker-demo'),
+    (5, '580002', '东吴双动力混合A', '东吴双动力混合型证券投资基金A', '混合型-偏股', 'MEDIUM_HIGH', 2, 31.20, DATE '2006-12-15', '沪深300指数收益率*75%+中债综合指数收益率*25%', '中国农业银行', 1, 'docker-demo'),
+    (6, '011241', '东吴双动力混合C', '东吴双动力混合型证券投资基金C', '混合型-偏股', 'MEDIUM_HIGH', 2, 11.10, DATE '2021-01-25', '沪深300指数收益率*75%+中债综合指数收益率*25%', '中国农业银行', 1, 'docker-demo'),
+    (7, '000001', '样本稳健债券基金A', '样本稳健债券型证券投资基金A', '债券型', 'MEDIUM_LOW', 3, 42.50, DATE '2018-03-12', '中债综合财富指数收益率*90%+一年定存利率*10%', '中国银行', 1, 'docker-demo')
+ON CONFLICT (fund_code) DO NOTHING;
+
+INSERT INTO fund_manager_relation (relation_id, fund_id, manager_id, start_date, is_current)
+VALUES
+    (1, 1, 1, DATE '2021-06-18', 1),
+    (2, 2, 1, DATE '2021-06-18', 1),
+    (3, 3, 2, DATE '2020-09-01', 1),
+    (4, 4, 2, DATE '2021-04-20', 1),
+    (5, 5, 2, DATE '2019-08-12', 1),
+    (6, 6, 2, DATE '2021-01-25', 1),
+    (7, 7, 3, DATE '2018-03-12', 1)
+ON CONFLICT DO NOTHING;
+
+INSERT INTO fund_tag (tag_id, tag_code, tag_name, tag_category, description, rule_expression, enabled)
+VALUES
+    (1, 'TOTAL_SCORE_RECOMMEND', '综合评分推荐', '策略标签', '综合收益、风险和稳定性后的推荐标签', 'total_score >= 70', 1),
+    (2, 'LONG_TERM_PERFORMANCE', '长期绩优', '业绩标签', '近一年收益表现较好', 'return_1y >= 20', 1),
+    (3, 'LOW_DRAWDOWN', '回撤较稳', '风险标签', '最大回撤相对可控', 'max_drawdown <= 8', 1),
+    (4, 'BOND_STABLE', '稳健债券', '类型标签', '债券型且波动较低', 'fund_type like bond', 1)
+ON CONFLICT (tag_code) DO NOTHING;
+
+INSERT INTO fund_tag_relation (relation_id, fund_id, tag_id, confidence, source, tag_date)
+VALUES
+    (1, 1, 1, 0.86, 'rule', CURRENT_DATE),
+    (2, 1, 2, 0.91, 'rule', CURRENT_DATE),
+    (3, 2, 1, 0.85, 'rule', CURRENT_DATE),
+    (4, 2, 2, 0.89, 'rule', CURRENT_DATE),
+    (5, 3, 1, 0.88, 'rule', CURRENT_DATE),
+    (6, 3, 2, 0.95, 'rule', CURRENT_DATE),
+    (7, 4, 1, 0.87, 'rule', CURRENT_DATE),
+    (8, 5, 1, 0.90, 'rule', CURRENT_DATE),
+    (9, 6, 1, 0.89, 'rule', CURRENT_DATE),
+    (10, 7, 3, 0.92, 'rule', CURRENT_DATE),
+    (11, 7, 4, 0.95, 'rule', CURRENT_DATE)
+ON CONFLICT DO NOTHING;
+
+INSERT INTO fund_score (score_id, fund_id, score_date, yield_score, risk_score, stability_score, manager_score, scale_score, total_score, recommend_level, explain_text)
+VALUES
+    (1, 1, CURRENT_DATE, 92.00, 62.00, 68.00, 78.00, 76.00, 75.50, '建议关注', '收益表现突出但回撤偏高，适合风险承受能力较强的投资者。'),
+    (2, 2, CURRENT_DATE, 91.00, 61.00, 67.00, 78.00, 75.00, 75.50, '建议关注', '与A类份额策略一致，适合关注制造主题且能接受波动的用户。'),
+    (3, 3, CURRENT_DATE, 94.00, 70.00, 74.00, 80.00, 72.00, 78.20, '建议关注', '近一年收益靠前，灵活配置能力较强。'),
+    (4, 4, CURRENT_DATE, 93.00, 70.00, 73.00, 80.00, 70.00, 77.80, '建议关注', '灵活配置产品，适合作为进取型组合的权益补充。'),
+    (5, 5, CURRENT_DATE, 95.00, 69.00, 75.00, 82.00, 78.00, 79.10, '建议关注', '中长期业绩较好，仍需关注权益市场波动。'),
+    (6, 6, CURRENT_DATE, 94.00, 69.00, 74.00, 82.00, 72.00, 78.40, '建议关注', '同策略C类份额，适合阶段性跟踪比较。'),
+    (7, 7, CURRENT_DATE, 62.00, 88.00, 90.00, 80.00, 76.00, 80.60, '稳健关注', '债券型产品波动较低，适合稳健型画像进行对比研究。')
+ON CONFLICT DO NOTHING;
+
+INSERT INTO fund_performance_metric (metric_id, fund_id, stat_date, period_code, return_rate, annual_return, volatility, max_drawdown, sharpe_ratio, rank_in_category, rank_total)
+VALUES
+    (1, 1, CURRENT_DATE, '1Y', 93.09, 93.09, 44.80, 29.08, 1.62, 8, 210),
+    (2, 2, CURRENT_DATE, '1Y', 91.94, 91.94, 45.07, 29.16, 1.58, 9, 210),
+    (3, 3, CURRENT_DATE, '1Y', 189.16, 189.16, 38.30, 21.69, 2.35, 2, 168),
+    (4, 4, CURRENT_DATE, '1Y', 188.04, 188.04, 38.70, 21.72, 2.31, 3, 168),
+    (5, 5, CURRENT_DATE, '1Y', 193.66, 193.66, 39.60, 21.28, 2.42, 1, 168),
+    (6, 6, CURRENT_DATE, '1Y', 192.58, 192.58, 39.20, 21.32, 2.39, 2, 168),
+    (7, 7, CURRENT_DATE, '1Y', 4.86, 4.86, 3.20, 2.10, 1.18, 18, 320),
+    (8, 1, CURRENT_DATE, '1M', 5.12, 61.44, 34.20, 8.20, 1.20, 26, 210),
+    (9, 1, CURRENT_DATE, '3M', 18.40, 73.60, 39.10, 12.50, 1.36, 18, 210),
+    (10, 7, CURRENT_DATE, '1M', 0.42, 5.04, 2.10, 0.60, 0.92, 42, 320),
+    (11, 7, CURRENT_DATE, '3M', 1.31, 5.24, 2.40, 0.90, 1.03, 38, 320),
+    (12, 7, CURRENT_DATE, '6M', 2.40, 4.80, 2.80, 1.40, 1.08, 35, 320)
+ON CONFLICT DO NOTHING;
+
+INSERT INTO fund_nav (nav_id, fund_id, nav_date, unit_nav, acc_nav, daily_return, source)
+VALUES
+    (1, 1, CURRENT_DATE - 29, 1.0000, 1.0000, 0.0000, 'docker-demo'),
+    (2, 1, CURRENT_DATE - 22, 1.0420, 1.0420, 4.2000, 'docker-demo'),
+    (3, 1, CURRENT_DATE - 15, 1.0860, 1.0860, 4.2200, 'docker-demo'),
+    (4, 1, CURRENT_DATE - 8, 1.1320, 1.1320, 4.2400, 'docker-demo'),
+    (5, 1, CURRENT_DATE, 1.1880, 1.1880, 4.9500, 'docker-demo'),
+    (6, 2, CURRENT_DATE - 29, 1.0000, 1.0000, 0.0000, 'docker-demo'),
+    (7, 2, CURRENT_DATE - 15, 1.0740, 1.0740, 7.4000, 'docker-demo'),
+    (8, 2, CURRENT_DATE, 1.1760, 1.1760, 9.5000, 'docker-demo'),
+    (9, 3, CURRENT_DATE - 29, 1.0000, 1.0000, 0.0000, 'docker-demo'),
+    (10, 3, CURRENT_DATE - 15, 1.1020, 1.1020, 10.2000, 'docker-demo'),
+    (11, 3, CURRENT_DATE, 1.2380, 1.2380, 12.3400, 'docker-demo'),
+    (12, 4, CURRENT_DATE - 29, 1.0000, 1.0000, 0.0000, 'docker-demo'),
+    (13, 4, CURRENT_DATE - 15, 1.0950, 1.0950, 9.5000, 'docker-demo'),
+    (14, 4, CURRENT_DATE, 1.2260, 1.2260, 11.9600, 'docker-demo'),
+    (15, 5, CURRENT_DATE - 29, 1.0000, 1.0000, 0.0000, 'docker-demo'),
+    (16, 5, CURRENT_DATE - 15, 1.1100, 1.1100, 11.0000, 'docker-demo'),
+    (17, 5, CURRENT_DATE, 1.2460, 1.2460, 12.2500, 'docker-demo'),
+    (18, 6, CURRENT_DATE - 29, 1.0000, 1.0000, 0.0000, 'docker-demo'),
+    (19, 6, CURRENT_DATE - 15, 1.1050, 1.1050, 10.5000, 'docker-demo'),
+    (20, 6, CURRENT_DATE, 1.2420, 1.2420, 12.4000, 'docker-demo'),
+    (21, 7, CURRENT_DATE - 29, 1.0000, 1.0000, 0.0000, 'docker-demo'),
+    (22, 7, CURRENT_DATE - 22, 1.0040, 1.0040, 0.4000, 'docker-demo'),
+    (23, 7, CURRENT_DATE - 15, 1.0080, 1.0080, 0.3984, 'docker-demo'),
+    (24, 7, CURRENT_DATE - 8, 1.0120, 1.0120, 0.3968, 'docker-demo'),
+    (25, 7, CURRENT_DATE, 1.0180, 1.0180, 0.5929, 'docker-demo')
+ON CONFLICT DO NOTHING;
+
+INSERT INTO fund_holding_report (report_id, fund_id, report_date, report_type, stock_ratio, bond_ratio, cash_ratio, top10_concentration)
+VALUES
+    (1, 1, CURRENT_DATE - 30, '季报', 86.40, 4.20, 9.40, 48.50),
+    (2, 3, CURRENT_DATE - 30, '季报', 72.10, 12.30, 15.60, 42.20),
+    (3, 7, CURRENT_DATE - 30, '季报', 3.20, 91.50, 5.30, 18.60)
+ON CONFLICT DO NOTHING;
+
+INSERT INTO fund_holding_detail (holding_id, report_id, security_code, security_name, security_type, industry_name, market_value, holding_ratio)
+VALUES
+    (1, 1, '300750', '宁德时代', '股票', '电力设备', 23800000.00, 7.80),
+    (2, 1, '002475', '立讯精密', '股票', '电子', 19600000.00, 6.40),
+    (3, 3, '019547', '政策性金融债', '债券', '利率债', 15000000.00, 12.30)
+ON CONFLICT DO NOTHING;
+
+INSERT INTO fund_attribution (attribution_id, fund_id, report_date, period_code, allocation_effect, selection_effect, industry_effect, style_effect, attribution_summary)
+VALUES
+    (1, 1, CURRENT_DATE, '1Y', 12.40, 18.60, 8.30, 6.20, '先进制造主题贡献显著，行业配置和个股选择均提供正贡献。'),
+    (2, 7, CURRENT_DATE, '1Y', 1.10, 0.80, 0.00, 0.30, '债券久期和票息收益是主要收益来源。')
+ON CONFLICT DO NOTHING;
+
+INSERT INTO fund_announcement (announcement_id, fund_id, title, announcement_date, category, source_url, summary)
+VALUES
+    (1, 1, '中金先进制造混合A季度报告摘要', CURRENT_DATE - 10, '定期报告', '', '基金保持先进制造方向配置，关注新能源、电子和高端装备。'),
+    (2, 7, '样本稳健债券基金A季度报告摘要', CURRENT_DATE - 8, '定期报告', '', '组合以高等级债券为主，控制久期和信用风险。')
+ON CONFLICT DO NOTHING;
+
+INSERT INTO ai_recommend_record (recommend_id, user_id, recommend_scene, request_payload, status)
+VALUES
+    (1, NULL, 'HOME', '{"riskPreference":"BALANCED"}', 'SUCCESS')
+ON CONFLICT DO NOTHING;
+
+INSERT INTO ai_recommend_item (item_id, recommend_id, fund_id, total_score_snapshot, recommend_level, reason, risk_warning, suitable_user, tags, display_order)
+VALUES
+    (1, 1, 1, 75.50, '建议关注', '近一年收益突出，制造主题弹性较强，适合作为进取方向观察样本。', '权益波动较大，短期可能出现明显回撤。', '平衡型/进取型', 'Dify解释,长期绩优', 1),
+    (2, 1, 3, 78.20, '建议关注', '多策略配置近一年表现靠前，收益弹性和组合分散度较好。', '灵活配置仍受市场风格切换影响。', '平衡型/进取型', 'Dify解释,综合评分推荐', 2),
+    (3, 1, 7, 80.60, '稳健关注', '债券型产品净值走势较平稳，适合与权益基金形成风险对照。', '债券基金仍存在利率和信用风险。', '稳健型/平衡型', 'Dify解释,稳健债券', 3)
+ON CONFLICT DO NOTHING;
+
+INSERT INTO ai_analysis_record (analysis_id, user_id, business_type, business_id, dify_workflow_id, request_payload, response_text, status)
+VALUES
+    (1, NULL, 'FUND_RECOMMEND', 1, 'docker-demo', '{}', '该基金近一年收益表现突出，适合风险承受能力较高的用户重点观察。', 'SUCCESS'),
+    (2, NULL, 'FUND_COMPARE', 1, 'docker-demo', '{}', '中金先进制造混合A收益弹性更强，样本稳健债券基金A波动更低，组合时可按风险偏好配置比例。', 'SUCCESS')
+ON CONFLICT DO NOTHING;
+
+INSERT INTO fund_compare_record (compare_id, user_id, compare_dimension, result_summary)
+VALUES
+    (1, 2, '收益风险对比', '中金先进制造混合A收益弹性较高但回撤也更大；样本稳健债券基金A更稳健，适合作为组合底仓。')
+ON CONFLICT DO NOTHING;
+
+INSERT INTO fund_compare_item (item_id, compare_id, fund_id, display_order)
+VALUES
+    (1, 1, 1, 1),
+    (2, 1, 7, 2)
+ON CONFLICT DO NOTHING;
+
+INSERT INTO fund_portfolio (portfolio_id, user_id, portfolio_name, portfolio_type, source_dimension, source_condition, description, portfolio_style, risk_level, avg_risk_score, avg_total_score, tracking_enabled)
+VALUES
+    (1, 2, '平衡观察组合', 'USER', '风险收益', '权益+债券', '用于 Docker 演示的基金组合。', '平衡型', 'MEDIUM', 75.00, 78.00, 1)
+ON CONFLICT DO NOTHING;
+
+INSERT INTO portfolio_fund_relation (relation_id, portfolio_id, fund_id, weight, add_source, snapshot_score, snapshot_return_1y, snapshot_max_drawdown, remark)
+VALUES
+    (1, 1, 1, 0.60, 'demo', 75.50, 93.09, 29.08, '收益弹性来源'),
+    (2, 1, 7, 0.40, 'demo', 80.60, 4.86, 2.10, '稳健底仓')
+ON CONFLICT DO NOTHING;
+
+INSERT INTO user_favorite (favorite_id, user_id, fund_id, favorite_group, remark)
+VALUES
+    (1, 2, 1, '默认分组', '关注制造主题弹性'),
+    (2, 2, 7, '默认分组', '用于稳健对比')
+ON CONFLICT DO NOTHING;
+
+INSERT INTO community_author_profile (author_id, user_id, nickname, avatar, intro, article_count, follower_count)
+VALUES
+    (1, 2, 'Iris0504', 'I', '基金研究与组合跟踪用户', 1, 3)
+ON CONFLICT DO NOTHING;
+
+INSERT INTO community_post (post_id, author_id, title, category, related_fund_id, summary, content, tags, view_count, comment_count, like_count, status)
+VALUES
+    (1, 1, '先进制造主题基金和稳健债券基金如何搭配', '组合研究', 1, '用权益基金提供收益弹性，用债券基金控制组合波动。', '本文基于 FundResearch 演示数据，比较先进制造主题基金和稳健债券基金在收益、回撤和波动率上的差异。', '基金研究,组合配置', 28, 1, 5, 'PUBLISHED')
+ON CONFLICT DO NOTHING;
+
+INSERT INTO community_comment (comment_id, post_id, user_id, content, status)
+VALUES
+    (1, 1, 2, '这个组合思路适合做课程演示和截图验证。', 'PUBLISHED')
+ON CONFLICT DO NOTHING;
+
+INSERT INTO data_import_batch (batch_id, batch_no, import_type, file_name, total_count, success_count, error_count, field_mapping, validate_summary, status, operator_id, finished_time)
+VALUES
+    (1, 'DEMO-INIT-001', 'FUND_CSV', 'docker-demo.csv', 7, 7, 0, '{}', 'Docker 初始化演示数据导入完成。', 'SUCCESS', 1, CURRENT_TIMESTAMP)
+ON CONFLICT DO NOTHING;
+
+SELECT setval(pg_get_serial_sequence('fund_user','user_id'), COALESCE((SELECT MAX(user_id) FROM fund_user), 1), true);
+SELECT setval(pg_get_serial_sequence('fund_company','company_id'), COALESCE((SELECT MAX(company_id) FROM fund_company), 1), true);
+SELECT setval(pg_get_serial_sequence('fund_manager','manager_id'), COALESCE((SELECT MAX(manager_id) FROM fund_manager), 1), true);
+SELECT setval(pg_get_serial_sequence('fund_info','fund_id'), COALESCE((SELECT MAX(fund_id) FROM fund_info), 1), true);
+SELECT setval(pg_get_serial_sequence('fund_nav','nav_id'), COALESCE((SELECT MAX(nav_id) FROM fund_nav), 1), true);
+SELECT setval(pg_get_serial_sequence('fund_score','score_id'), COALESCE((SELECT MAX(score_id) FROM fund_score), 1), true);
+SELECT setval(pg_get_serial_sequence('fund_performance_metric','metric_id'), COALESCE((SELECT MAX(metric_id) FROM fund_performance_metric), 1), true);
+SELECT setval(pg_get_serial_sequence('fund_tag','tag_id'), COALESCE((SELECT MAX(tag_id) FROM fund_tag), 1), true);
+SELECT setval(pg_get_serial_sequence('ai_recommend_record','recommend_id'), COALESCE((SELECT MAX(recommend_id) FROM ai_recommend_record), 1), true);
+SELECT setval(pg_get_serial_sequence('ai_recommend_item','item_id'), COALESCE((SELECT MAX(item_id) FROM ai_recommend_item), 1), true);

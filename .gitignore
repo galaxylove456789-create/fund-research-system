@@ -30,6 +30,14 @@ dist/
 # Java backend build outputs
 target/
 
+# Local runtime secrets and generated files
+.env
+*.log
+.venv/
+logs/
+tmp_pack/
+project_source_*.zip
+
 # HarmonyOS local dependencies, IDE files, and build outputs
 oh_modules/
 .hvigor/

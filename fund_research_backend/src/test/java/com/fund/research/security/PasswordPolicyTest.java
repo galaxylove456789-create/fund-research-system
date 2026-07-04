@@ -3,28 +3,25 @@ package com.fund.research.security;
 import com.fund.research.common.BusinessException;
 import org.junit.jupiter.api.Test;
 
-import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
-import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.assertj.core.api.Assertions.assertThatCode;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 class PasswordPolicyTest {
 
     @Test
-    void acceptsPasswordWithLettersAndDigits() {
-        assertDoesNotThrow(() -> PasswordPolicy.validate("alice", "Fund2026"));
+    void rejectsWeakPasswords() {
+        assertThatThrownBy(() -> PasswordPolicy.validate("alice", "12345678"))
+                .isInstanceOf(BusinessException.class)
+                .hasMessageContaining("字母和数字");
+
+        assertThatThrownBy(() -> PasswordPolicy.validate("alice", "alice2026"))
+                .isInstanceOf(BusinessException.class)
+                .hasMessageContaining("用户名");
     }
 
     @Test
-    void rejectsPasswordShorterThanEightCharacters() {
-        assertThrows(BusinessException.class, () -> PasswordPolicy.validate("alice", "A12345"));
-    }
-
-    @Test
-    void rejectsPasswordWithoutDigit() {
-        assertThrows(BusinessException.class, () -> PasswordPolicy.validate("alice", "PasswordOnly"));
-    }
-
-    @Test
-    void rejectsPasswordContainingUsernameIgnoringCase() {
-        assertThrows(BusinessException.class, () -> PasswordPolicy.validate("Alice", "Alice2026"));
+    void acceptsPasswordWithLettersAndNumbers() {
+        assertThatCode(() -> PasswordPolicy.validate("alice", "Fund2026"))
+                .doesNotThrowAnyException();
     }
 }

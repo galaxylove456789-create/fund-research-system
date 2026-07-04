@@ -1,0 +1,60 @@
+name: FundResearch
+
+services:
+  kingbase:
+    build:
+      context: ./docker/kingbase
+    image: fundresearch/kingbase:latest
+    container_name: FundResearch-kingbase
+    environment:
+      DB_USER: ${FUND_DB_USERNAME:-system}
+      DB_PASSWORD: ${FUND_DB_PASSWORD:-1234}
+      DB_MODE: ${KINGBASE_DB_MODE:-pg}
+      ENCODING: ${KINGBASE_ENCODING:-UTF-8}
+      FUND_DB_NAME: ${FUND_DB_NAME:-fund_research}
+    ports:
+      - "54321:54321"
+    volumes:
+      - kingbase-data:/home/kingbase/userdata
+      - ./docker/kingbase/initdb:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "ksql -U ${FUND_DB_USERNAME:-system} -d ${FUND_DB_NAME:-fund_research} -c 'select 1' >/dev/null 2>&1"]
+      interval: 10s
+      timeout: 5s
+      retries: 30
+      start_period: 40s
+    restart: unless-stopped
+
+  backend:
+    build:
+      context: ./fund_research_backend
+    image: fundresearch/backend:latest
+    container_name: FundResearch-backend
+    environment:
+      SPRING_PROFILES_ACTIVE: local
+      FUND_DB_URL: ${FUND_DB_URL:-jdbc:kingbase8://kingbase:54321/fund_research?currentSchema=public}
+      FUND_DB_USERNAME: ${FUND_DB_USERNAME:-system}
+      FUND_DB_PASSWORD: ${FUND_DB_PASSWORD:-1234}
+      JWT_SECRET: ${JWT_SECRET:-FundResearch-change-this-secret-before-production-2026}
+      DIFY_API_KEY: ${DIFY_API_KEY:-}
+      DIFY_BASE_URL: ${DIFY_BASE_URL:-http://host.docker.internal:18080/v1}
+    depends_on:
+      kingbase:
+        condition: service_healthy
+    ports:
+      - "8080:8080"
+    restart: unless-stopped
+
+  frontend:
+    build:
+      context: ./fund_research_front
+    image: fundresearch/frontend:latest
+    container_name: FundResearch-frontend
+    depends_on:
+      - backend
+    ports:
+      - "80:80"
+    restart: unless-stopped
+
+volumes:
+  kingbase-data:
