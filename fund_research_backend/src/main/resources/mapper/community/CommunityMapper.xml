@@ -1,0 +1,437 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.fund.research.module.community.mapper.CommunityMapper">
+
+    <resultMap id="postVOMap" type="com.fund.research.module.community.vo.PostVO">
+        <id property="postId" column="post_id"/>
+        <result property="authorId" column="author_id"/>
+        <result property="authorNickname" column="author_nickname"/>
+        <result property="authorAvatar" column="author_avatar"/>
+        <result property="title" column="title"/>
+        <result property="category" column="category"/>
+        <result property="relatedFundId" column="related_fund_id"/>
+        <result property="relatedFundCode" column="related_fund_code"/>
+        <result property="relatedFundName" column="related_fund_name"/>
+        <result property="summary" column="summary"/>
+        <result property="content" column="content"/>
+        <result property="tags" column="tags"/>
+        <result property="viewCount" column="view_count"/>
+        <result property="commentCount" column="comment_count"/>
+        <result property="likeCount" column="like_count"/>
+        <result property="liked" column="liked"/>
+        <result property="viewed" column="viewed"/>
+        <result property="status" column="status"/>
+        <result property="createdTime" column="created_time"/>
+    </resultMap>
+
+    <resultMap id="authorVOMap" type="com.fund.research.module.community.vo.AuthorVO">
+        <id property="authorId" column="author_id"/>
+        <result property="userId" column="user_id"/>
+        <result property="nickname" column="nickname"/>
+        <result property="avatar" column="avatar"/>
+        <result property="intro" column="intro"/>
+        <result property="articleCount" column="article_count"/>
+        <result property="followerCount" column="follower_count"/>
+        <result property="followed" column="followed"/>
+    </resultMap>
+
+    <resultMap id="commentVOMap" type="com.fund.research.module.community.vo.CommentVO">
+        <id property="commentId" column="comment_id"/>
+        <result property="postId" column="post_id"/>
+        <result property="userId" column="user_id"/>
+        <result property="username" column="username"/>
+        <result property="content" column="content"/>
+        <result property="status" column="status"/>
+        <result property="createdTime" column="created_time"/>
+    </resultMap>
+
+    <sql id="postColumns">
+        p.post_id, p.author_id, ap.nickname AS author_nickname, ap.avatar AS author_avatar,
+        p.title, p.category, p.related_fund_id, fi.fund_code AS related_fund_code, fi.fund_name AS related_fund_name,
+        p.summary, p.content, p.tags, p.view_count, p.comment_count, p.like_count,
+        p.status, p.created_time
+    </sql>
+
+    <select id="selectPostPage" resultMap="postVOMap">
+        SELECT
+        <include refid="postColumns"/>
+        FROM community_post p
+        INNER JOIN community_author_profile ap ON ap.author_id = p.author_id
+        LEFT JOIN fund_info fi ON fi.fund_id = p.related_fund_id
+        <where>
+            p.status = 'PUBLISHED'
+            <if test="category != null and category != '' and category != '全部'">
+                AND p.category = #{category}
+            </if>
+            <if test="keyword != null and keyword != ''">
+                AND (p.title LIKE CONCAT('%', #{keyword}, '%')
+                     OR p.summary LIKE CONCAT('%', #{keyword}, '%')
+                     OR p.tags LIKE CONCAT('%', #{keyword}, '%'))
+            </if>
+            <if test="authorId != null">
+                AND p.author_id = #{authorId}
+            </if>
+        </where>
+        <choose>
+            <when test="sort == 'hot'">
+                ORDER BY p.view_count DESC, p.like_count DESC, p.post_id DESC
+            </when>
+            <when test="sort == 'featured'">
+                ORDER BY p.like_count DESC, p.comment_count DESC, p.post_id DESC
+            </when>
+            <otherwise>
+                ORDER BY p.created_time DESC, p.post_id DESC
+            </otherwise>
+        </choose>
+    </select>
+
+    <select id="selectPostsByAuthor" resultMap="postVOMap">
+        SELECT
+        <include refid="postColumns"/>
+        FROM community_post p
+        INNER JOIN community_author_profile ap ON ap.author_id = p.author_id
+        LEFT JOIN fund_info fi ON fi.fund_id = p.related_fund_id
+        WHERE p.author_id = #{authorId}
+        ORDER BY p.created_time DESC, p.post_id DESC
+    </select>
+
+    <select id="selectPostDetail" resultMap="postVOMap">
+        SELECT
+        <include refid="postColumns"/>,
+        CASE WHEN
+        <choose>
+            <when test="currentUserId != null">
+                EXISTS (
+                    SELECT 1 FROM community_like l
+                    WHERE l.target_type = 'POST'
+                      AND l.target_id = p.post_id
+                      AND l.user_id = #{currentUserId}
+                )
+            </when>
+            <otherwise>
+                1 = 0
+            </otherwise>
+        </choose>
+        THEN 1 ELSE 0 END AS liked,
+        CASE WHEN
+        <choose>
+            <when test="currentUserId != null">
+                EXISTS (
+                    SELECT 1 FROM community_post_view v
+                    WHERE v.post_id = p.post_id
+                      AND v.user_id = #{currentUserId}
+                )
+            </when>
+            <otherwise>
+                1 = 0
+            </otherwise>
+        </choose>
+        THEN 1 ELSE 0 END AS viewed
+        FROM community_post p
+        INNER JOIN community_author_profile ap ON ap.author_id = p.author_id
+        LEFT JOIN fund_info fi ON fi.fund_id = p.related_fund_id
+        WHERE p.post_id = #{postId}
+    </select>
+
+    <select id="selectPostComments" resultMap="commentVOMap">
+        SELECT
+            c.comment_id,
+            c.post_id,
+            c.user_id,
+            u.username,
+            c.content,
+            c.status,
+            c.created_time
+        FROM community_comment c
+        LEFT JOIN fund_user u ON u.user_id = c.user_id
+        WHERE c.post_id = #{postId}
+          AND c.status = 'PUBLISHED'
+        ORDER BY c.created_time ASC, c.comment_id ASC
+        <if test="limit != null">
+            LIMIT #{limit}
+        </if>
+    </select>
+
+    <insert id="insertPost" parameterType="java.util.Map">
+        <selectKey keyProperty="postId" order="BEFORE" resultType="java.lang.Long">
+            SELECT COALESCE(MAX(post_id), 0) + 1 FROM community_post
+        </selectKey>
+        INSERT INTO community_post (
+            post_id, author_id, title, category, related_fund_id,
+            summary, content, tags,
+            view_count, comment_count, like_count,
+            status, created_time, updated_time
+        ) VALUES (
+            #{postId}, #{authorId}, #{title}, #{category}, #{relatedFundId},
+            #{summary}, #{content}, #{tags},
+            0, 0, 0,
+            #{status}, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
+        )
+    </insert>
+
+    <insert id="insertAuthorProfileForUser">
+        INSERT INTO community_author_profile (
+            author_id,
+            user_id,
+            nickname,
+            avatar,
+            intro,
+            article_count,
+            follower_count,
+            created_time,
+            updated_time
+        )
+        SELECT
+            (SELECT COALESCE(MAX(author_id), 0) + 1 FROM community_author_profile),
+            u.user_id,
+            COALESCE(NULLIF(u.username, ''), CONCAT('研究用户', u.user_id)),
+            u.avatar,
+            '基金研究平台用户',
+            0,
+            0,
+            CURRENT_TIMESTAMP,
+            CURRENT_TIMESTAMP
+        FROM fund_user u
+        WHERE u.user_id = #{userId}
+          AND NOT EXISTS (
+              SELECT 1
+              FROM community_author_profile ap
+              WHERE ap.user_id = u.user_id
+          )
+    </insert>
+
+    <update id="increaseAuthorArticleCount">
+        UPDATE community_author_profile
+        SET article_count = COALESCE(article_count, 0) + 1,
+            updated_time = CURRENT_TIMESTAMP
+        WHERE author_id = #{authorId}
+    </update>
+
+    <insert id="insertPostView">
+        INSERT INTO community_post_view (view_id, post_id, user_id, ip_address, user_agent, view_time)
+        VALUES (
+            (SELECT COALESCE(MAX(view_id), 0) + 1 FROM community_post_view),
+            #{postId}, #{userId}, #{ipAddress}, #{userAgent}, CURRENT_TIMESTAMP
+        )
+    </insert>
+
+    <update id="increasePostViewCount">
+        UPDATE community_post
+        SET view_count = COALESCE(view_count, 0) + 1,
+            updated_time = CURRENT_TIMESTAMP
+        WHERE post_id = #{postId}
+    </update>
+
+    <select id="countPostLike" resultType="int">
+        SELECT COUNT(1)
+        FROM community_like
+        WHERE user_id = #{userId}
+          AND target_type = 'POST'
+          AND target_id = #{postId}
+    </select>
+
+    <insert id="insertPostLike">
+        INSERT INTO community_like (like_id, user_id, target_type, target_id, created_time)
+        VALUES (
+            (SELECT COALESCE(MAX(like_id), 0) + 1 FROM community_like),
+            #{userId}, 'POST', #{postId}, CURRENT_TIMESTAMP
+        )
+    </insert>
+
+    <delete id="deletePostLike">
+        DELETE FROM community_like
+        WHERE user_id = #{userId}
+          AND target_type = 'POST'
+          AND target_id = #{postId}
+    </delete>
+
+    <update id="increasePostLikeCount">
+        UPDATE community_post
+        SET like_count = COALESCE(like_count, 0) + 1,
+            updated_time = CURRENT_TIMESTAMP
+        WHERE post_id = #{postId}
+    </update>
+
+    <update id="decreasePostLikeCount">
+        UPDATE community_post
+        SET like_count = CASE
+                WHEN COALESCE(like_count, 0) > 0 THEN COALESCE(like_count, 0) - 1
+                ELSE 0
+            END,
+            updated_time = CURRENT_TIMESTAMP
+        WHERE post_id = #{postId}
+    </update>
+
+    <insert id="insertPostComment" parameterType="java.util.Map">
+        <selectKey keyProperty="commentId" order="BEFORE" resultType="java.lang.Long">
+            SELECT COALESCE(MAX(comment_id), 0) + 1 FROM community_comment
+        </selectKey>
+        INSERT INTO community_comment (comment_id, post_id, user_id, content, status, created_time)
+        VALUES (#{commentId}, #{postId}, #{userId}, #{content}, 'PUBLISHED', CURRENT_TIMESTAMP)
+    </insert>
+
+    <update id="increasePostCommentCount">
+        UPDATE community_post
+        SET comment_count = COALESCE(comment_count, 0) + 1,
+            updated_time = CURRENT_TIMESTAMP
+        WHERE post_id = #{postId}
+    </update>
+
+    <select id="selectAuthorDetail" resultMap="authorVOMap">
+        SELECT
+            ap.author_id, ap.user_id, ap.nickname, ap.avatar, ap.intro,
+            ap.article_count, ap.follower_count,
+            CASE WHEN
+            <choose>
+                <when test="currentUserId != null">
+                    EXISTS (
+                        SELECT 1 FROM community_author_follow f
+                        WHERE f.author_id = ap.author_id
+                          AND f.user_id = #{currentUserId}
+                    )
+                </when>
+                <otherwise>
+                    1 = 0
+                </otherwise>
+            </choose>
+            THEN 1 ELSE 0 END AS followed
+        FROM community_author_profile ap
+        WHERE ap.author_id = #{authorId}
+    </select>
+
+    <select id="selectRecommendedAuthors" resultMap="authorVOMap">
+        SELECT
+            ap.author_id, ap.user_id, ap.nickname, ap.avatar, ap.intro,
+            ap.article_count, ap.follower_count,
+            CASE WHEN
+            <choose>
+                <when test="currentUserId != null">
+                    EXISTS (
+                        SELECT 1 FROM community_author_follow f
+                        WHERE f.author_id = ap.author_id
+                          AND f.user_id = #{currentUserId}
+                    )
+                </when>
+                <otherwise>
+                    1 = 0
+                </otherwise>
+            </choose>
+            THEN 1 ELSE 0 END AS followed
+        FROM community_author_profile ap
+        <where>
+            <if test="currentUserId != null">
+                NOT EXISTS (
+                    SELECT 1 FROM community_author_follow fx
+                    WHERE fx.author_id = ap.author_id
+                      AND fx.user_id = #{currentUserId}
+                )
+            </if>
+        </where>
+        ORDER BY ap.follower_count DESC, ap.author_id ASC
+        <if test="limit != null">
+            LIMIT #{limit}
+        </if>
+    </select>
+
+    <select id="selectFollowedAuthors" resultMap="authorVOMap">
+        SELECT
+            ap.author_id, ap.user_id, ap.nickname, ap.avatar, ap.intro,
+            ap.article_count, ap.follower_count,
+            1 AS followed
+        FROM community_author_follow f
+        INNER JOIN community_author_profile ap ON ap.author_id = f.author_id
+        WHERE f.user_id = #{userId}
+        ORDER BY f.created_time DESC, f.follow_id DESC
+        <if test="limit != null">
+            LIMIT #{limit}
+        </if>
+    </select>
+
+    <select id="selectLikedPosts" resultMap="postVOMap">
+        SELECT
+        <include refid="postColumns"/>,
+        1 AS liked,
+        CASE WHEN EXISTS (
+            SELECT 1 FROM community_post_view v
+            WHERE v.post_id = p.post_id AND v.user_id = #{userId}
+        ) THEN 1 ELSE 0 END AS viewed
+        FROM community_like l
+        INNER JOIN community_post p ON p.post_id = l.target_id AND l.target_type = 'POST'
+        INNER JOIN community_author_profile ap ON ap.author_id = p.author_id
+        LEFT JOIN fund_info fi ON fi.fund_id = p.related_fund_id
+        WHERE l.user_id = #{userId}
+          AND p.status = 'PUBLISHED'
+        ORDER BY l.created_time DESC, l.like_id DESC
+        <if test="limit != null">
+            LIMIT #{limit}
+        </if>
+    </select>
+
+    <select id="selectCommentsByUser" resultType="map">
+        SELECT
+            c.comment_id AS "commentId",
+            c.post_id AS "postId",
+            c.user_id AS "userId",
+            c.content AS "content",
+            c.created_time AS "createdTime",
+            p.title AS "postTitle",
+            p.category AS "category",
+            p.related_fund_id AS "relatedFundId",
+            fi.fund_code AS "relatedFundCode",
+            fi.fund_name AS "relatedFundName"
+        FROM community_comment c
+        INNER JOIN community_post p ON p.post_id = c.post_id
+        LEFT JOIN fund_info fi ON fi.fund_id = p.related_fund_id
+        WHERE c.user_id = #{userId}
+          AND c.status = 'PUBLISHED'
+          AND p.status = 'PUBLISHED'
+        ORDER BY c.created_time DESC, c.comment_id DESC
+        <if test="limit != null">
+            LIMIT #{limit}
+        </if>
+    </select>
+
+    <select id="countAuthorFollow" resultType="int">
+        SELECT COUNT(1)
+        FROM community_author_follow
+        WHERE user_id = #{userId}
+          AND author_id = #{authorId}
+    </select>
+
+    <insert id="insertAuthorFollow">
+        INSERT INTO community_author_follow (follow_id, user_id, author_id, created_time)
+        VALUES (
+            (SELECT COALESCE(MAX(follow_id), 0) + 1 FROM community_author_follow),
+            #{userId}, #{authorId}, CURRENT_TIMESTAMP
+        )
+    </insert>
+
+    <update id="increaseAuthorFollowerCount">
+        UPDATE community_author_profile
+        SET follower_count = COALESCE(follower_count, 0) + 1,
+            updated_time = CURRENT_TIMESTAMP
+        WHERE author_id = #{authorId}
+    </update>
+
+    <select id="selectCommunityTags" resultType="string">
+        SELECT tag FROM (
+            SELECT trim(regexp_split_to_table(tags, ',')) AS tag, COUNT(*) AS cnt
+            FROM community_post
+            WHERE status = 'PUBLISHED' AND tags IS NOT NULL
+            GROUP BY tag
+            ORDER BY cnt DESC
+            <if test="limit != null">
+                LIMIT #{limit}
+            </if>
+        ) t
+        WHERE tag IS NOT NULL AND tag != ''
+    </select>
+
+    <select id="selectCommunityCategories" resultType="string">
+        SELECT DISTINCT category
+        FROM community_post
+        WHERE status = 'PUBLISHED'
+        ORDER BY category
+    </select>
+
+</mapper>

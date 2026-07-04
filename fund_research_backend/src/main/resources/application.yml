@@ -1,0 +1,65 @@
+server:
+  port: 8080
+  servlet:
+    context-path: /
+
+spring:
+  profiles:
+    active: local
+  application:
+    name: fund-research-backend
+  jackson:
+    date-format: yyyy-MM-dd'T'HH:mm:ss
+    time-zone: GMT+8
+    default-property-inclusion: non_null
+    serialization:
+      write-dates-as-timestamps: false
+      fail-on-empty-beans: false
+    deserialization:
+      fail-on-unknown-properties: false
+
+mybatis-plus:
+  configuration:
+    map-underscore-to-camel-case: true
+    log-impl: org.apache.ibatis.logging.stdout.StdOutImpl
+  global-config:
+    banner: false
+    db-config:
+      id-type: auto
+      logic-delete-field: deleted
+      logic-delete-value: 1
+      logic-not-delete-value: 0
+  mapper-locations: classpath*:/mapper/**/*.xml
+  type-aliases-package: com.fund.research.module.*.entity
+
+springdoc:
+  api-docs:
+    enabled: true
+    path: /v3/api-docs
+  swagger-ui:
+    enabled: true
+    path: /swagger-ui.html
+
+knife4j:
+  enable: true
+  setting:
+    language: zh_cn
+
+# Dify integration (placeholders; real key must come from env or local config)
+dify:
+  base-url: https://api.dify.ai/v1
+  api-key: ${DIFY_API_KEY:}
+  timeout-millis: 30000
+
+# JWT (placeholder)
+security:
+  jwt:
+    secret: ${JWT_SECRET:please-change-me-in-prod}
+    expire-minutes: 1440
+    header: Authorization
+    prefix: "Bearer "
+
+logging:
+  level:
+    root: INFO
+    com.fund.research: DEBUG

@@ -1,0 +1,84 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.fund.research.module.ai.mapper.AiAnalysisMapper">
+
+    <resultMap id="aiAnalysisRecordVOMap" type="com.fund.research.module.ai.vo.AiAnalysisRecordVO">
+        <id property="analysisId" column="analysis_id"/>
+        <result property="userId" column="user_id"/>
+        <result property="businessType" column="business_type"/>
+        <result property="businessId" column="business_id"/>
+        <result property="difyWorkflowId" column="dify_workflow_id"/>
+        <result property="requestPayload" column="request_payload"/>
+        <result property="responseText" column="response_text"/>
+        <result property="status" column="status"/>
+        <result property="errorMessage" column="error_message"/>
+        <result property="createdTime" column="created_time"/>
+    </resultMap>
+
+    <select id="selectAnalysisPage" resultMap="aiAnalysisRecordVOMap">
+        SELECT
+            analysis_id,
+            user_id,
+            business_type,
+            business_id,
+            dify_workflow_id,
+            request_payload,
+            response_text,
+            status,
+            error_message,
+            created_time
+        FROM ai_analysis_record
+        WHERE 1 = 1
+        <if test="userId != null">
+            AND user_id = #{userId}
+        </if>
+        <if test="businessType != null and businessType != ''">
+            AND business_type = #{businessType}
+        </if>
+        ORDER BY created_time DESC, analysis_id DESC
+    </select>
+
+    <select id="selectAnalysisById" resultMap="aiAnalysisRecordVOMap">
+        SELECT
+            analysis_id,
+            user_id,
+            business_type,
+            business_id,
+            dify_workflow_id,
+            request_payload,
+            response_text,
+            status,
+            error_message,
+            created_time
+        FROM ai_analysis_record
+        WHERE analysis_id = #{analysisId}
+    </select>
+
+    <select id="selectLatestSuccessfulAnalysis" resultMap="aiAnalysisRecordVOMap">
+        SELECT
+            analysis_id,
+            user_id,
+            business_type,
+            business_id,
+            dify_workflow_id,
+            request_payload,
+            response_text,
+            status,
+            error_message,
+            created_time
+        FROM ai_analysis_record
+        WHERE status = 'SUCCESS'
+          AND response_text IS NOT NULL
+          AND response_text != ''
+          AND business_type = #{businessType}
+          AND business_id = #{businessId}
+          <if test="userId != null">
+              AND user_id = #{userId}
+          </if>
+          <if test="userId == null">
+              AND user_id IS NULL
+          </if>
+        ORDER BY created_time DESC, analysis_id DESC
+        LIMIT 1
+    </select>
+</mapper>

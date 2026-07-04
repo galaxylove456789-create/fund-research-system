@@ -1,0 +1,113 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.fund.research.module.favorite.mapper.FavoriteMapper">
+
+    <resultMap id="favoriteVOMap" type="com.fund.research.module.favorite.vo.FavoriteVO">
+        <id property="favoriteId" column="favorite_id"/>
+        <result property="userId" column="user_id"/>
+        <result property="fundId" column="fund_id"/>
+        <result property="fundCode" column="fund_code"/>
+        <result property="fundName" column="fund_name"/>
+        <result property="fundType" column="fund_type"/>
+        <result property="riskLevel" column="risk_level"/>
+        <result property="companyName" column="company_name"/>
+        <result property="managerName" column="manager_name"/>
+        <result property="return1y" column="return_1y"/>
+        <result property="maxDrawdown" column="max_drawdown"/>
+        <result property="totalScore" column="total_score"/>
+        <result property="recommendLevel" column="recommend_level"/>
+        <result property="favoriteGroup" column="favorite_group"/>
+        <result property="remark" column="remark"/>
+        <result property="createdTime" column="created_time"/>
+    </resultMap>
+
+    <sql id="latestScoreSubQuery">
+        (SELECT s.*
+         FROM fund_score s
+         INNER JOIN (
+             SELECT fund_id, MAX(score_date) AS max_date
+             FROM fund_score
+             GROUP BY fund_id
+         ) m ON m.fund_id = s.fund_id AND m.max_date = s.score_date)
+    </sql>
+
+    <sql id="latestYearMetricSubQuery">
+        (SELECT pm.*
+         FROM fund_performance_metric pm
+         INNER JOIN (
+             SELECT fund_id, MAX(stat_date) AS max_date
+             FROM fund_performance_metric
+             WHERE period_code = '1Y'
+             GROUP BY fund_id
+         ) m ON m.fund_id = pm.fund_id AND m.max_date = pm.stat_date
+         WHERE pm.period_code = '1Y')
+    </sql>
+
+    <sql id="favoriteJoinColumns">
+        uf.favorite_id,
+        uf.user_id,
+        uf.fund_id,
+        f.fund_code,
+        f.fund_name,
+        f.fund_type,
+        f.risk_level,
+        c.company_name,
+        cm.manager_name,
+        pm.return_rate AS return_1y,
+        pm.max_drawdown AS max_drawdown,
+        s.total_score,
+        s.recommend_level,
+        uf.favorite_group,
+        uf.remark,
+        uf.created_time
+    </sql>
+
+    <select id="selectFavoritePage" resultMap="favoriteVOMap">
+        SELECT
+        <include refid="favoriteJoinColumns"/>
+        FROM user_favorite uf
+        INNER JOIN fund_info f ON f.fund_id = uf.fund_id
+        LEFT JOIN fund_company c ON c.company_id = f.company_id
+        LEFT JOIN <include refid="latestScoreSubQuery"/> s ON s.fund_id = f.fund_id
+        LEFT JOIN <include refid="latestYearMetricSubQuery"/> pm ON pm.fund_id = f.fund_id
+        LEFT JOIN (
+            SELECT fund_id, string_agg(manager_name, '、' ORDER BY rn) AS manager_name
+            FROM (
+                SELECT fmr.fund_id, fm.manager_name,
+                       ROW_NUMBER() OVER (PARTITION BY fmr.fund_id ORDER BY fmr.is_current DESC, fmr.relation_id) AS rn
+                FROM fund_manager_relation fmr
+                INNER JOIN fund_manager fm ON fm.manager_id = fmr.manager_id
+            ) ranked
+            WHERE rn &lt;= 2
+            GROUP BY fund_id
+        ) cm ON cm.fund_id = f.fund_id
+        WHERE uf.user_id = #{userId}
+        <if test="favoriteGroup != null and favoriteGroup != ''">
+            AND uf.favorite_group = #{favoriteGroup}
+        </if>
+        ORDER BY uf.created_time DESC, uf.favorite_id DESC
+    </select>
+
+    <select id="selectFavoriteById" resultMap="favoriteVOMap">
+        SELECT
+        <include refid="favoriteJoinColumns"/>
+        FROM user_favorite uf
+        INNER JOIN fund_info f ON f.fund_id = uf.fund_id
+        LEFT JOIN fund_company c ON c.company_id = f.company_id
+        LEFT JOIN <include refid="latestScoreSubQuery"/> s ON s.fund_id = f.fund_id
+        LEFT JOIN <include refid="latestYearMetricSubQuery"/> pm ON pm.fund_id = f.fund_id
+        LEFT JOIN (
+            SELECT fund_id, string_agg(manager_name, '、' ORDER BY rn) AS manager_name
+            FROM (
+                SELECT fmr.fund_id, fm.manager_name,
+                       ROW_NUMBER() OVER (PARTITION BY fmr.fund_id ORDER BY fmr.is_current DESC, fmr.relation_id) AS rn
+                FROM fund_manager_relation fmr
+                INNER JOIN fund_manager fm ON fm.manager_id = fmr.manager_id
+            ) ranked
+            WHERE rn &lt;= 2
+            GROUP BY fund_id
+        ) cm ON cm.fund_id = f.fund_id
+        WHERE uf.favorite_id = #{favoriteId}
+    </select>
+
+</mapper>

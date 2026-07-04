@@ -1,0 +1,140 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.fund.research.module.admin.mapper.AdminImportMapper">
+
+    <resultMap id="importBatchVOMap" type="com.fund.research.module.admin.vo.ImportBatchVO">
+        <id property="batchId" column="batch_id"/>
+        <result property="batchNo" column="batch_no"/>
+        <result property="importType" column="import_type"/>
+        <result property="fileName" column="file_name"/>
+        <result property="fileHash" column="file_hash"/>
+        <result property="totalCount" column="total_count"/>
+        <result property="successCount" column="success_count"/>
+        <result property="errorCount" column="error_count"/>
+        <result property="fieldMapping" column="field_mapping"/>
+        <result property="validateSummary" column="validate_summary"/>
+        <result property="status" column="status"/>
+        <result property="operatorId" column="operator_id"/>
+        <result property="createdTime" column="created_time"/>
+        <result property="finishedTime" column="finished_time"/>
+    </resultMap>
+
+    <resultMap id="importErrorVOMap" type="com.fund.research.module.admin.vo.ImportErrorVO">
+        <id property="errorId" column="error_id"/>
+        <result property="batchId" column="batch_id"/>
+        <result property="rowNo" column="row_no"/>
+        <result property="fundCode" column="fund_code"/>
+        <result property="errorField" column="error_field"/>
+        <result property="errorReason" column="error_reason"/>
+        <result property="suggestion" column="suggestion"/>
+        <result property="rawData" column="raw_data"/>
+        <result property="status" column="status"/>
+        <result property="createdTime" column="created_time"/>
+    </resultMap>
+
+    <select id="selectImportBatches" resultMap="importBatchVOMap">
+        SELECT
+            batch_id, batch_no, import_type, file_name, file_hash,
+            total_count, success_count, error_count,
+            field_mapping, validate_summary, status, operator_id,
+            created_time, finished_time
+        FROM data_import_batch
+        ORDER BY created_time DESC, batch_id DESC
+    </select>
+
+    <select id="selectImportErrors" resultMap="importErrorVOMap">
+        SELECT
+            error_id, batch_id, row_no, fund_code, error_field,
+            error_reason, suggestion, raw_data, status, created_time
+        FROM data_import_error
+        <where>
+            <if test="batchId != null">
+                batch_id = #{batchId}
+            </if>
+        </where>
+        ORDER BY error_id ASC
+    </select>
+
+    <insert id="insertImportBatch">
+        INSERT INTO data_import_batch (
+            batch_id,
+            batch_no,
+            import_type,
+            file_name,
+            file_hash,
+            total_count,
+            success_count,
+            error_count,
+            field_mapping,
+            validate_summary,
+            status,
+            operator_id,
+            created_time,
+            finished_time
+        ) VALUES (
+            (SELECT COALESCE(MAX(batch_id), 0) + 1 FROM data_import_batch),
+            #{batch.batchNo},
+            #{batch.importType},
+            #{batch.fileName},
+            #{batch.fileHash},
+            #{batch.totalCount},
+            #{batch.successCount},
+            #{batch.errorCount},
+            #{batch.fieldMapping},
+            #{batch.validateSummary},
+            #{batch.status},
+            #{batch.operatorId},
+            CURRENT_TIMESTAMP,
+            CURRENT_TIMESTAMP
+        )
+    </insert>
+
+    <select id="selectTagRules" resultType="java.util.HashMap">
+        SELECT
+            tag_id AS "tagId",
+            tag_code AS "tagCode",
+            tag_name AS "name",
+            tag_category AS "type",
+            COALESCE(rule_expression, description) AS "condition",
+            '规则引擎' AS "source",
+            CASE WHEN enabled = 1 THEN '启用' ELSE '停用' END AS "status",
+            description AS "description"
+        FROM fund_tag
+        ORDER BY tag_category, tag_id
+    </select>
+
+    <insert id="insertTagRule">
+        INSERT INTO fund_tag (
+            tag_id,
+            tag_code,
+            tag_name,
+            tag_category,
+            description,
+            rule_expression,
+            enabled
+        ) VALUES (
+            (SELECT COALESCE(MAX(tag_id), 0) + 1 FROM fund_tag),
+            COALESCE(#{rule.tagCode}, CONCAT('CUSTOM_', (SELECT COALESCE(MAX(tag_id), 0) + 1 FROM fund_tag))),
+            #{rule.name},
+            #{rule.type},
+            #{rule.description},
+            #{rule.condition},
+            CASE WHEN #{rule.status} = '停用' THEN 0 ELSE 1 END
+        )
+    </insert>
+
+    <update id="updateTagRule">
+        UPDATE fund_tag
+        SET tag_name = COALESCE(#{rule.name}, tag_name),
+            tag_category = COALESCE(#{rule.type}, tag_category),
+            description = COALESCE(#{rule.description}, description),
+            rule_expression = COALESCE(#{rule.condition}, rule_expression),
+            enabled = CASE
+                WHEN #{rule.status} = '停用' THEN 0
+                WHEN #{rule.status} = '启用' THEN 1
+                ELSE enabled
+            END
+        WHERE tag_id = #{tagId}
+    </update>
+
+</mapper>

@@ -1,0 +1,264 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.fund.research.module.portfolio.mapper.PortfolioMapper">
+
+    <resultMap id="portfolioListVOMap" type="com.fund.research.module.portfolio.vo.PortfolioListVO">
+        <id property="portfolioId" column="portfolio_id"/>
+        <result property="userId" column="user_id"/>
+        <result property="portfolioName" column="portfolio_name"/>
+        <result property="portfolioType" column="portfolio_type"/>
+        <result property="sourceDimension" column="source_dimension"/>
+        <result property="sourceCondition" column="source_condition"/>
+        <result property="description" column="description"/>
+        <result property="portfolioStyle" column="portfolio_style"/>
+        <result property="expectedRisk" column="risk_level"/>
+        <result property="riskLevel" column="risk_level"/>
+        <result property="avgRiskScore" column="avg_risk_score"/>
+        <result property="avgTotalScore" column="avg_total_score"/>
+        <result property="trackingEnabled" column="tracking_enabled"/>
+        <result property="fundCount" column="fund_count"/>
+        <result property="createdTime" column="created_time"/>
+        <result property="updatedTime" column="updated_time"/>
+    </resultMap>
+
+    <resultMap id="portfolioDetailVOMap" type="com.fund.research.module.portfolio.vo.PortfolioDetailVO" extends="portfolioListVOMap"/>
+
+    <resultMap id="portfolioFundVOMap" type="com.fund.research.module.portfolio.vo.PortfolioFundVO">
+        <id property="relationId" column="relation_id"/>
+        <result property="fundId" column="fund_id"/>
+        <result property="fundCode" column="fund_code"/>
+        <result property="fundName" column="fund_name"/>
+        <result property="fundType" column="fund_type"/>
+        <result property="riskLevel" column="risk_level"/>
+        <result property="companyName" column="company_name"/>
+        <result property="totalScore" column="total_score"/>
+        <result property="recommendLevel" column="recommend_level"/>
+        <result property="weight" column="weight"/>
+        <result property="addSource" column="add_source"/>
+        <result property="snapshotScore" column="snapshot_score"/>
+        <result property="snapshotReturn1y" column="snapshot_return_1y"/>
+        <result property="snapshotMaxDrawdown" column="snapshot_max_drawdown"/>
+        <result property="remark" column="remark"/>
+        <result property="createdTime" column="created_time"/>
+    </resultMap>
+
+    <sql id="latestScoreSubQuery">
+        (SELECT s.*
+         FROM fund_score s
+         INNER JOIN (
+             SELECT fund_id, MAX(score_date) AS max_date
+             FROM fund_score
+             GROUP BY fund_id
+         ) m ON m.fund_id = s.fund_id AND m.max_date = s.score_date)
+    </sql>
+
+    <select id="selectPortfolioPage" resultMap="portfolioListVOMap">
+        SELECT
+            p.portfolio_id,
+            p.user_id,
+            p.portfolio_name,
+            p.portfolio_type,
+            p.source_dimension,
+            p.source_condition,
+            p.description,
+            p.portfolio_style,
+            p.risk_level,
+            p.avg_risk_score,
+            p.avg_total_score,
+            p.tracking_enabled,
+            COUNT(r.fund_id) AS fund_count,
+            p.created_time,
+            p.updated_time
+        FROM fund_portfolio p
+        LEFT JOIN portfolio_fund_relation r ON r.portfolio_id = p.portfolio_id
+        WHERE 1 = 1
+        <if test="userId != null">
+            AND p.user_id = #{userId}
+        </if>
+        <if test="portfolioType != null and portfolioType != ''">
+            AND p.portfolio_type = #{portfolioType}
+        </if>
+        GROUP BY
+            p.portfolio_id,
+            p.user_id,
+            p.portfolio_name,
+            p.portfolio_type,
+            p.source_dimension,
+            p.source_condition,
+            p.description,
+            p.portfolio_style,
+            p.risk_level,
+            p.avg_risk_score,
+            p.avg_total_score,
+            p.tracking_enabled,
+            p.created_time,
+            p.updated_time
+        ORDER BY p.updated_time DESC NULLS LAST, p.created_time DESC, p.portfolio_id DESC
+    </select>
+
+    <select id="selectPortfolioDetail" resultMap="portfolioDetailVOMap">
+        SELECT
+            p.portfolio_id,
+            p.user_id,
+            p.portfolio_name,
+            p.portfolio_type,
+            p.source_dimension,
+            p.source_condition,
+            p.description,
+            p.portfolio_style,
+            p.risk_level,
+            p.avg_risk_score,
+            p.avg_total_score,
+            p.tracking_enabled,
+            COUNT(r.fund_id) AS fund_count,
+            p.created_time,
+            p.updated_time
+        FROM fund_portfolio p
+        LEFT JOIN portfolio_fund_relation r ON r.portfolio_id = p.portfolio_id
+        WHERE p.portfolio_id = #{portfolioId}
+        GROUP BY
+            p.portfolio_id,
+            p.user_id,
+            p.portfolio_name,
+            p.portfolio_type,
+            p.source_dimension,
+            p.source_condition,
+            p.description,
+            p.portfolio_style,
+            p.risk_level,
+            p.avg_risk_score,
+            p.avg_total_score,
+            p.tracking_enabled,
+            p.created_time,
+            p.updated_time
+    </select>
+
+    <select id="selectPortfolioFunds" resultMap="portfolioFundVOMap">
+        SELECT
+            r.relation_id,
+            r.fund_id,
+            f.fund_code,
+            f.fund_name,
+            f.fund_type,
+            f.risk_level,
+            c.company_name,
+            s.total_score,
+            s.recommend_level,
+            r.weight,
+            r.add_source,
+            r.snapshot_score,
+            r.snapshot_return_1y,
+            r.snapshot_max_drawdown,
+            r.remark,
+            r.created_time
+        FROM portfolio_fund_relation r
+        INNER JOIN fund_info f ON f.fund_id = r.fund_id
+        LEFT JOIN fund_company c ON c.company_id = f.company_id
+        LEFT JOIN <include refid="latestScoreSubQuery"/> s ON s.fund_id = f.fund_id
+        WHERE r.portfolio_id = #{portfolioId}
+        ORDER BY r.created_time ASC, r.relation_id ASC
+    </select>
+
+    <select id="selectLatestTotalScore" resultType="java.math.BigDecimal">
+        SELECT total_score
+        FROM fund_score
+        WHERE fund_id = #{fundId}
+        ORDER BY score_date DESC
+        LIMIT 1
+    </select>
+
+    <update id="refreshPortfolioStats">
+        UPDATE fund_portfolio
+        SET
+            avg_total_score = (
+                SELECT AVG(s.total_score)
+                FROM portfolio_fund_relation r
+                LEFT JOIN <include refid="latestScoreSubQuery"/> s ON s.fund_id = r.fund_id
+                WHERE r.portfolio_id = #{portfolioId}
+            ),
+            avg_risk_score = (
+                SELECT AVG(s.risk_score)
+                FROM portfolio_fund_relation r
+                LEFT JOIN <include refid="latestScoreSubQuery"/> s ON s.fund_id = r.fund_id
+                WHERE r.portfolio_id = #{portfolioId}
+            ),
+            updated_time = CURRENT_TIMESTAMP
+        WHERE portfolio_id = #{portfolioId}
+    </update>
+
+    <select id="selectFundIdsByQuery" resultType="java.lang.Long">
+        <bind name="metricPeriodFilter" value="query.metricPeriod == null or query.metricPeriod == '' ? '1Y' : query.metricPeriod"/>
+        SELECT f.fund_id
+        FROM fund_info f
+        LEFT JOIN fund_company c ON c.company_id = f.company_id
+        LEFT JOIN <include refid="latestScoreSubQuery"/> s ON s.fund_id = f.fund_id
+        WHERE 1 = 1
+        <if test="query.fundCode != null and query.fundCode != ''">
+            AND f.fund_code LIKE CONCAT('%', #{query.fundCode}, '%')
+        </if>
+        <if test="query.keyword != null and query.keyword != ''">
+            AND f.fund_name LIKE CONCAT('%', #{query.keyword}, '%')
+        </if>
+        <if test="query.fundType != null and query.fundType != ''">
+            AND (
+                f.fund_type = #{query.fundType}
+                OR f.fund_type LIKE CONCAT('%', #{query.fundType}, '%')
+                OR (#{query.fundType} = '混合型' AND f.fund_type LIKE '%混合%')
+                OR (#{query.fundType} = '股票型' AND f.fund_type LIKE '%股票%')
+                OR (#{query.fundType} = '债券型' AND f.fund_type LIKE '%债%')
+                OR (#{query.fundType} = '指数型' AND f.fund_type LIKE '%指数%')
+                OR (#{query.fundType} = '货币型' AND f.fund_type LIKE '%货币%')
+                OR (UPPER(#{query.fundType}) = 'QDII' AND UPPER(f.fund_type) LIKE '%QDII%')
+            )
+        </if>
+        <if test="query.companyName != null and query.companyName != ''">
+            AND (c.company_name LIKE CONCAT('%', #{query.companyName}, '%')
+                 OR f.fund_name LIKE CONCAT('%', #{query.companyName}, '%'))
+        </if>
+        <if test="query.managerName != null and query.managerName != ''">
+            AND EXISTS (
+                SELECT 1
+                FROM fund_manager_relation fmr
+                INNER JOIN fund_manager fm ON fm.manager_id = fmr.manager_id
+                WHERE fmr.fund_id = f.fund_id
+                  AND fm.manager_name LIKE CONCAT('%', #{query.managerName}, '%')
+            )
+        </if>
+        <if test="query.riskLevel != null and query.riskLevel != ''">
+            AND f.risk_level = #{query.riskLevel}
+        </if>
+        <if test="query.companyId != null">
+            AND f.company_id = #{query.companyId}
+        </if>
+        <if test="query.minScore != null">
+            AND s.total_score &gt;= #{query.minScore}
+        </if>
+        <if test="query.maxScore != null">
+            AND s.total_score &lt;= #{query.maxScore}
+        </if>
+        <if test="query.tagIds != null and query.tagIds.size() > 0">
+            AND EXISTS (
+                SELECT 1
+                FROM fund_tag_relation ftr
+                WHERE ftr.fund_id = f.fund_id
+                AND ftr.tag_id IN
+                <foreach collection="query.tagIds" item="tagId" open="(" separator="," close=")">
+                    #{tagId}
+                </foreach>
+            )
+        </if>
+        <if test="query.minReturn != null or query.maxReturn != null or query.maxDrawdown != null">
+            AND EXISTS (
+                SELECT 1
+                FROM fund_performance_metric pm
+                WHERE pm.fund_id = f.fund_id
+                AND pm.period_code = #{metricPeriodFilter}
+                AND (#{query.minReturn} IS NULL OR pm.return_rate &gt;= #{query.minReturn})
+                AND (#{query.maxReturn} IS NULL OR pm.return_rate &lt;= #{query.maxReturn})
+                AND (#{query.maxDrawdown} IS NULL OR (pm.max_drawdown IS NOT NULL AND pm.max_drawdown &lt;= #{query.maxDrawdown}))
+            )
+        </if>
+        ORDER BY s.total_score DESC NULLS LAST, f.fund_id DESC
+        LIMIT #{limit}
+    </select>
+</mapper>

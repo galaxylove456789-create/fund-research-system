@@ -1,0 +1,28 @@
+# Local development profile. Copy this file and adjust credentials as needed.
+# Do not commit real credentials to version control.
+
+spring:
+  datasource:
+    type: com.zaxxer.hikari.HikariDataSource
+    driver-class-name: com.kingbase8.Driver
+    url: ${FUND_DB_URL:jdbc:kingbase8://localhost:54321/fund_research?currentSchema=public}
+    username: ${FUND_DB_USERNAME:system}
+    # Local course-demo database password. Override with FUND_DB_PASSWORD if needed.
+    password: ${FUND_DB_PASSWORD:1234}
+    hikari:
+      pool-name: FundResearchHikariPool
+      minimum-idle: 5
+      maximum-pool-size: 20
+      idle-timeout: 300000
+      max-lifetime: 1800000
+      connection-timeout: 30000
+      connection-test-query: SELECT 1
+
+# Override Dify key locally if needed
+dify:
+  api-key: ${DIFY_API_KEY:}
+
+logging:
+  level:
+    com.fund.research: DEBUG
+    com.baomidou.mybatisplus: DEBUG

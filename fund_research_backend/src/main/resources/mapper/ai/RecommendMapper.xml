@@ -1,0 +1,107 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.fund.research.module.ai.mapper.RecommendMapper">
+
+    <resultMap id="recommendFundVOMap" type="com.fund.research.module.ai.vo.RecommendFundVO">
+        <id property="recommendId" column="recommend_id"/>
+        <result property="fundId" column="fund_id"/>
+        <result property="fundCode" column="fund_code"/>
+        <result property="fundName" column="fund_name"/>
+        <result property="fundType" column="fund_type"/>
+        <result property="riskLevel" column="risk_level"/>
+        <result property="companyName" column="company_name"/>
+        <result property="return1y" column="return_1y"/>
+        <result property="maxDrawdown" column="max_drawdown"/>
+        <result property="totalScore" column="total_score_snapshot"/>
+        <result property="recommendLevel" column="recommend_level"/>
+        <result property="reason" column="reason"/>
+        <result property="riskWarning" column="risk_warning"/>
+        <result property="suitableUser" column="suitable_user"/>
+        <result property="tags" column="tags"/>
+        <result property="displayOrder" column="display_order"/>
+        <result property="createdTime" column="created_time"/>
+    </resultMap>
+
+    <sql id="recommendColumns">
+        r.recommend_id, r.fund_id, fi.fund_code, fi.fund_name, fi.fund_type, fi.risk_level,
+        c.company_name,
+        pm.return_rate AS return_1y,
+        pm.max_drawdown AS max_drawdown,
+        r.total_score_snapshot, r.recommend_level,
+        r.reason, r.risk_warning, r.suitable_user, r.tags,
+        r.display_order, r.created_time
+    </sql>
+
+    <sql id="latestYearMetricSubQuery">
+        (SELECT pm.*
+         FROM fund_performance_metric pm
+         INNER JOIN (
+             SELECT fund_id, MAX(stat_date) AS max_date
+             FROM fund_performance_metric
+             WHERE period_code = '1Y'
+             GROUP BY fund_id
+         ) m ON m.fund_id = pm.fund_id AND m.max_date = pm.stat_date
+         WHERE pm.period_code = '1Y')
+    </sql>
+
+    <select id="selectRecommendFundPage" resultMap="recommendFundVOMap">
+        SELECT
+        <include refid="recommendColumns"/>
+        FROM ai_recommend_item r
+        INNER JOIN ai_recommend_record rec ON rec.recommend_id = r.recommend_id
+        INNER JOIN fund_info fi ON fi.fund_id = r.fund_id
+        LEFT JOIN fund_company c ON c.company_id = fi.company_id
+        LEFT JOIN <include refid="latestYearMetricSubQuery"/> pm ON pm.fund_id = fi.fund_id
+        <where>
+            rec.status = 'SUCCESS'
+            <if test="userId != null">
+                AND rec.user_id = #{userId}
+            </if>
+            <if test="scene != null and scene != ''">
+                AND rec.recommend_scene = #{scene}
+            </if>
+        </where>
+        ORDER BY rec.created_time DESC, r.display_order ASC, r.item_id ASC
+    </select>
+
+    <select id="selectRecommendFunds" resultMap="recommendFundVOMap">
+        SELECT
+        <include refid="recommendColumns"/>
+        FROM ai_recommend_item r
+        INNER JOIN ai_recommend_record rec ON rec.recommend_id = r.recommend_id
+        INNER JOIN fund_info fi ON fi.fund_id = r.fund_id
+        LEFT JOIN fund_company c ON c.company_id = fi.company_id
+        LEFT JOIN <include refid="latestYearMetricSubQuery"/> pm ON pm.fund_id = fi.fund_id
+        <where>
+            rec.status = 'SUCCESS'
+            <if test="userId != null">
+                AND rec.user_id = #{userId}
+            </if>
+            <if test="scene != null and scene != ''">
+                AND rec.recommend_scene = #{scene}
+            </if>
+        </where>
+        ORDER BY rec.created_time DESC, r.display_order ASC
+        <if test="limit != null">
+            LIMIT #{limit}
+        </if>
+    </select>
+
+    <select id="selectLatestRecommendFund" resultMap="recommendFundVOMap">
+        SELECT
+        <include refid="recommendColumns"/>
+        FROM ai_recommend_item r
+        INNER JOIN ai_recommend_record rec ON rec.recommend_id = r.recommend_id
+        INNER JOIN fund_info fi ON fi.fund_id = r.fund_id
+        LEFT JOIN fund_company c ON c.company_id = fi.company_id
+        LEFT JOIN <include refid="latestYearMetricSubQuery"/> pm ON pm.fund_id = fi.fund_id
+        WHERE rec.status = 'SUCCESS'
+        <if test="userId != null">
+            AND rec.user_id = #{userId}
+        </if>
+        AND r.fund_id = #{fundId}
+        ORDER BY rec.created_time DESC
+        LIMIT 1
+    </select>
+
+</mapper>

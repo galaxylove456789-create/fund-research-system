@@ -1,0 +1,58 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.fund.research.module.tag.mapper.TagMapper">
+
+    <resultMap id="tagVOMap" type="com.fund.research.module.tag.vo.TagVO">
+        <id property="tagId" column="tag_id"/>
+        <result property="tagCode" column="tag_code"/>
+        <result property="tagName" column="tag_name"/>
+        <result property="tagCategory" column="tag_category"/>
+        <result property="description" column="description"/>
+        <result property="enabled" column="enabled"/>
+        <result property="fundCount" column="fund_count"/>
+    </resultMap>
+
+    <select id="selectTags" resultMap="tagVOMap">
+        SELECT
+            t.tag_id,
+            t.tag_code,
+            t.tag_name,
+            t.tag_category,
+            t.description,
+            t.enabled,
+            COUNT(DISTINCT r.fund_id) AS fund_count
+        FROM fund_tag t
+        LEFT JOIN fund_tag_relation r ON r.tag_id = t.tag_id
+        <where>
+            <if test="query.enabled != null">
+                AND t.enabled = #{query.enabled}
+            </if>
+            <if test="query.category != null and query.category != ''">
+                AND t.tag_category = #{query.category}
+            </if>
+            <if test="query.keyword != null and query.keyword != ''">
+                AND (
+                    t.tag_name LIKE CONCAT('%', #{query.keyword}, '%')
+                    OR t.tag_code LIKE CONCAT('%', #{query.keyword}, '%')
+                )
+            </if>
+        </where>
+        GROUP BY
+            t.tag_id,
+            t.tag_code,
+            t.tag_name,
+            t.tag_category,
+            t.description,
+            t.enabled
+        ORDER BY t.tag_category, t.tag_id
+    </select>
+
+    <select id="selectCategories" resultType="java.lang.String">
+        SELECT DISTINCT tag_category
+        FROM fund_tag
+        WHERE enabled = 1
+        AND tag_category IS NOT NULL
+        ORDER BY tag_category
+    </select>
+
+</mapper>
