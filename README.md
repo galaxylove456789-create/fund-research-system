@@ -148,6 +148,5 @@ npm run test
 
 ## 注意事项
 
-- 不要提交 `.env`，真实 Dify API Key、JWT Secret 和数据库密码只应保存在本地环境变量中。
 - `docker/kingbase/initdb/002_previous_full_database.sql` 较大，是为了保证数据库容器首次启动时可以恢复完整项目数据。
 - Dify 服务不包含在本项目 Docker Compose 内，需要单独部署 Dify 后通过 `.env` 配置 `DIFY_BASE_URL` 和 `DIFY_API_KEY`。
